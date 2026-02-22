@@ -240,8 +240,6 @@ bool SmootherServer::findSmootherId(
 
 void SmootherServer::smoothPlan()
 {
-  auto start_time = this->now();
-
   RCLCPP_INFO(get_logger(), "Received a path to smooth.");
 
   auto result = std::make_shared<Action::Result>();
@@ -266,6 +264,7 @@ void SmootherServer::smoothPlan()
       throw nav2_core::InvalidPath("Requested path to smooth is invalid");
     }
 
+    auto start_time = this->now();
     result->was_completed = smoothers_[current_smoother_]->smooth(
       result->path, goal->max_smoothing_duration);
     result->smoothing_duration = this->now() - start_time;

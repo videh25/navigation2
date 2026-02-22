@@ -341,7 +341,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.7
+        inflation_radius: 1.6
       always_send_full_costmap: true
       introspection_mode: "disabled"
 
@@ -389,24 +389,32 @@ map_saver:
 
 planner_server:
   ros__parameters:
-    allow_partial_planning: false
     expected_planner_frequency: 20.0
-    planner_plugins: ["GridBased"]
-    costmap_update_timeout: 1.0
-    introspection_mode: "disabled"
-    GridBased:
-      plugin: "nav2_navfn_planner::NavfnPlanner"
+    planner_plugins: ["SmacHybrid", "NavfnPlanner", "ThetaStar"]
+    SmacHybrid:
+      plugin: "nav2_smac_planner::SmacPlannerHybrid"
       tolerance: 0.5
-      use_astar: false
-      allow_unknown: true
+      motion_model_for_search: "DUBIN" # default, non-reverse motion
+      smooth_path: false # should be disabled for experiment
+      analytic_expansion_max_length: 0.3 # decreased to avoid robot jerking
+    NavfnPlanner:
+      plugin: 'nav2_navfn_planner::NavfnPlanner' # In Iron and older versions, "/" was used instead of "::"
+      use_astar: True
+      allow_unknown: True
+      tolerance: 1.0
+    ThetaStar:
+      plugin: "nav2_theta_star_planner::ThetaStarPlanner"
+      how_many_corners: 8
+      w_euc_cost: 1.0
+      w_traversal_cost: 2.0
 
-smoother_server_constrained:
+smoother_server:
   ros__parameters:
-    smoother_plugins: ["constrained_smoother"]
+    smoother_plugins: ["constrained_smoother", "constrained_smoother_old"]
     constrained_smoother:
       plugin: "nav2_constrained_smoother/ConstrainedSmoother"
-      reversing_enabled: false       # whether to detect forward/reverse direction and cusps. Should be set to false for paths without orientations assigned
-      path_downsampling_factor: 3   # every n-th node of the path is taken. Useful for speed-up
+      reversing_enabled: false       # whether to detect forward/reverse direction and cusps. should be set to false for paths without orientations assigned
+      path_downsampling_factor: 3   # every n-th node of the path is taken. useful for speed-up
       path_upsampling_factor: 1     # 0 - path remains downsampled, 1 - path is upsampled back to original granularity using cubic bezier, 2... - more upsampling
       keep_start_orientation: true  # whether to prevent the start orientation from being smoothed
       keep_goal_orientation: true   # whether to prevent the gpal orientation from being smoothed
@@ -431,10 +439,6 @@ smoother_server_constrained:
         fn_tol: 1.0e-15
         param_tol: 1.0e-20
 
-
-smoother_server_constrained_old:
-  ros__parameters:
-    smoother_plugins: ["constrained_smoother_old"]
     constrained_smoother_old:
       plugin: "nav2_constrained_smoother_old/ConstrainedSmootherOld"
       reversing_enabled: false       # whether to detect forward/reverse direction and cusps. Should be set to false for paths without orientations assigned

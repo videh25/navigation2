@@ -415,7 +415,10 @@ void PlannerServer::computePlanThroughPoses()
       }
 
       // Get plan from start -> goal
+      auto planning_start = this->now();
       nav_msgs::msg::Path curr_path;
+      auto planning_duration = this->now() - planning_start; 
+      result->planning_time = planning_duration;                     
       try {
         curr_path = getPlan(curr_start, curr_goal, goal->planner_id, cancel_checker);
       } catch (nav2_core::PlannerException & ex) {
@@ -468,7 +471,7 @@ void PlannerServer::computePlanThroughPoses()
     publishPlan(result->path);
 
     auto cycle_duration = this->now() - start_time;
-    result->planning_time = cycle_duration;
+    // result->planning_time = cycle_duration;
 
     if (max_planner_duration_ && cycle_duration.seconds() > max_planner_duration_) {
       RCLCPP_WARN(
