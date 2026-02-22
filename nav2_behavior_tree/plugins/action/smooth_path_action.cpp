@@ -85,4 +85,14 @@ BT_REGISTER_NODES(factory)
 
   factory.registerBuilder<nav2_behavior_tree::SmoothPathAction>(
     "SmoothPath", builder);
+
+  BT::NodeBuilder builder_old =
+    [](const std::string & name, const BT::NodeConfiguration & config)
+    {
+      return std::make_unique<nav2_behavior_tree::SmoothPathAction>(
+        name, "smooth_path_old", config);
+    };
+
+  factory.registerBuilder<nav2_behavior_tree::SmoothPathAction>(
+    "SmoothPathOld", builder_old);
 }

@@ -19,6 +19,8 @@ find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(nav2_ros_common REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Ceres REQUIRED COMPONENTS SuiteSparse)
 
 nav2_package()
 
@@ -296,6 +298,25 @@ foreach(bt_plugin ${plugin_libs})
   )
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()
+
+add_library(ceres_summary_comparer_bt_node SHARED plugins/condition/ceres_summary_comparer.cpp)
+target_include_directories(ceres_summary_comparer_bt_node
+  PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
+target_link_libraries(ceres_summary_comparer_bt_node PUBLIC
+  behaviortree_cpp::behaviortree_cpp
+  Ceres::ceres
+  Eigen3::Eigen
+  nav2_ros_common::nav2_ros_common
+)
+target_compile_definitions(ceres_summary_comparer_bt_node PRIVATE BT_PLUGIN_EXPORT)
+install(TARGETS ceres_summary_comparer_bt_node
+  EXPORT ${library_name}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
 
 install(TARGETS ${library_name} ${plugin_libs}
   EXPORT ${library_name}

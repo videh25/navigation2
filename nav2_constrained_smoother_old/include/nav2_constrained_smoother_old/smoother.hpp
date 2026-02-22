@@ -25,17 +25,15 @@
 #include <deque>
 #include <limits>
 #include <algorithm>
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/String.hpp>
 
-#include "nav2_constrained_smoother/smoother_cost_function.hpp"
-#include "nav2_constrained_smoother/utils.hpp"
+#include "nav2_constrained_smoother_old/smoother_cost_function.hpp"
+#include "nav2_constrained_smoother_old/utils.hpp"
 #include "nav2_core/smoother_exceptions.hpp"
 
 #include "ceres/ceres.h"
 #include "Eigen/Core"
 
-namespace nav2_constrained_smoother
+namespace nav2_constrained_smoother_old
 {
 
 /**
@@ -397,9 +395,8 @@ private:
   bool debug_;
   ceres::Solver::Options options_;
   std::shared_ptr<ceres::Grid2D<unsigned char>> costmap_grid_;
-  // rclcpp::Publisher<std_msgs::msg::String> summary_publisher;
 };
 
-}  // namespace nav2_constrained_smoother
+}  // namespace nav2_constrained_smoother_old
 
 #endif  // NAV2_CONSTRAINED_SMOOTHER__SMOOTHER_HPP_
