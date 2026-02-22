@@ -18,7 +18,7 @@ import math
 import os
 import pickle
 from random import randint, seed, uniform
-from typing import Optional
+from typing import Optional, Tuple, Dict
 
 from builtin_interfaces.msg import Time
 from geometry_msgs.msg import PoseStamped
@@ -29,7 +29,61 @@ from numpy.typing import NDArray
 import rclpy
 from transforms3d.euler import euler2quat
 
+from rclpy.node import Node
+from std_msgs.msg import String   # change message type as needed
+import json
+import time
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 # Note: Map origin is assumed to be (0,0)
+
+class CeresSummaryCollector(Node):
+    def __init__(self):
+        super().__init__('ceres_summary_collector')
+
+        qos = QoSProfile(
+            depth=500,
+            reliability=ReliabilityPolicy.RELIABLE
+        )
+
+        self.old_subscription = self.create_subscription(
+            String,              # message type
+            '/ceres_summary_old',        # topic name
+            self.listener_callback_old,
+            qos,
+        )
+
+        self.new_subscription = self.create_subscription(
+            String,              # message type
+            '/ceres_summary',        # topic name
+            self.listener_callback_new,
+            qos,
+        )
+        self.get_logger().info("Subscriber node started.")
+        self.old_ceres_summaries = []
+        self.new_ceres_summaries = []
+
+    def listener_callback_old(self, msg):
+        self.old_ceres_summaries.append(msg)
+
+    def listener_callback_new(self, msg):
+        self.new_ceres_summaries.append(msg)
+
+    def wait_and_get_ceres_data(self, expected_total: int):
+        while ((len(self.new_ceres_summaries) != expected_total) or (len(self.old_ceres_summaries) != expected_total)):
+            print(f"Waiting for all old ceres summaries ({len(self.old_ceres_summaries)} / {expected_total}) ...")
+            print(f"Waiting for all new ceres summaries ({len(self.new_ceres_summaries)} / {expected_total}) ...")
+            time.sleep(1)
+            rclpy.spin_once(self)
+        combined_summaries = [[], []]
+        for i in range(expected_total):
+            combined_summaries[0].append(json.loads(self.old_ceres_summaries[i].data))
+            combined_summaries[1].append(json.loads(self.new_ceres_summaries[i].data))
+        return combined_summaries
+
+    def flush_ceres_data(self):
+        self.latest_old_msg = []
+        self.latest_new_msg = []
+        return None
 
 
 def getPlannerResults(
@@ -116,6 +170,7 @@ def main() -> None:
     rclpy.init()
 
     navigator = BasicNavigator()
+    ceres_summary_collector = CeresSummaryCollector()
 
     # Wait for planner and smoother to fully activate
     print('Waiting for planner and smoother servers to activate')
@@ -134,7 +189,7 @@ def main() -> None:
     results = []
     seed(33)
 
-    random_pairs = 100
+    random_pairs = 4
     i = 0
     res = costmap_msg.metadata.resolution
     while i < random_pairs:
@@ -147,14 +202,17 @@ def main() -> None:
         if result is not None:
             smoothed_results = getSmootherResults(navigator, result.path, smoothers)
             if smoothed_results is not None:
+                rclpy.spin_once(ceres_summary_collector)
                 results.append(result)
                 results.append(smoothed_results)
                 i += 1
 
+    print("Getting ceres summaries")
+    ceres_summary = ceres_summary_collector.wait_and_get_ceres_data(random_pairs)
     print('Write Results...')
     benchmark_dir = os.getcwd()
     with open(os.path.join(benchmark_dir, 'results.pickle'), 'wb') as f:
-        pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump([results, ceres_summary], f, pickle.HIGHEST_PROTOCOL)
 
     with open(os.path.join(benchmark_dir, 'costmap.pickle'), 'wb') as f:
         pickle.dump(costmap_msg, f, pickle.HIGHEST_PROTOCOL)

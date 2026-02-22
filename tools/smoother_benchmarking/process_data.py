@@ -236,13 +236,18 @@ def maxPathCost(
 
     return max_path_costs
 
+def calculate_mean(bool_list: list[bool]):
+    return sum(bool_list) / len(bool_list)
+
+def get_list_from_data(data, key):
+    return [data_i[key] for data_i in data]
 
 def main() -> None:
     # Read the data
     benchmark_dir = os.getcwd()
     print('Read data')
     with open(os.path.join(benchmark_dir, 'results.pickle'), 'rb') as f:
-        results = pickle.load(f)
+        results, ceres_summaries = pickle.load(f)
 
     with open(os.path.join(benchmark_dir, 'methods.pickle'), 'rb') as f:
         smoothers = pickle.load(f)
@@ -286,6 +291,25 @@ def main() -> None:
     curvatures.resize((int(total_paths / methods_num), methods_num))
     curvatures = np.transpose(curvatures)
 
+    # Ceres Metrics
+    ceres_summaries_old = ceres_summaries[0]
+    ceres_summaries_new = ceres_summaries[1]
+    print("START")
+    [print(cs, end="\n----------------\n") for cs in ceres_summaries] 
+    print("DONE")
+    ceres_converge_rate = [
+    100.0 * calculate_mean(get_list_from_data(ceres_summaries_old, "converged")),
+    100.0 * calculate_mean(get_list_from_data(ceres_summaries_new, "converged")),
+    ]
+    ceres_time = [
+        calculate_mean(get_list_from_data(ceres_summaries_old, "total_time")),
+        calculate_mean(get_list_from_data(ceres_summaries_new, "total_time")),
+    ]
+    ceres_iterations = [
+        calculate_mean(get_list_from_data(ceres_summaries_old, "num_iterations")),
+        calculate_mean(get_list_from_data(ceres_summaries_new, "num_iterations")),
+    ]
+ 
     # Generate table
     planner_table = [
         [
@@ -296,6 +320,9 @@ def main() -> None:
             'Max cost',
             'Path smoothness (x100)',
             'Average turning rad (m)',
+            'Ceres Converge Rate (%)',
+            'Ceres Average # Iterations',
+            'Ceres Average time (s)',
         ]
     ]
     # for path planner
@@ -308,19 +335,25 @@ def main() -> None:
             np.average(max_path_costs[0]),
             np.average(smoothnesses[0]) * 100,
             np.average(curvatures[0]),
+            '',
+            '',
+            '',
         ]
     )
     # for path smoothers
-    for i in range(1, methods_num):
+    for i in range(methods_num - 1):
         planner_table.append(
             [
-                smoothers[i - 1],
+                smoothers[i],
                 np.average(times[i]),
                 np.average(path_lengths[i]),
                 np.average(average_path_costs[i]),
                 np.average(max_path_costs[i]),
                 np.average(smoothnesses[i]) * 100,
                 np.average(curvatures[i]),
+                ceres_converge_rate[i],
+                ceres_iterations[i],
+                ceres_time[i],
             ]
         )
 

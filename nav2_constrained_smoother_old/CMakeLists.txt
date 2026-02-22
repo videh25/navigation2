@@ -19,6 +19,9 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(nav2_ros_common REQUIRED)
 
+find_package(nlohmann_json REQUIRED)
+find_package(std_msgs REQUIRED)
+
 nav2_package()
 
 set(library_name nav2_constrained_smoother_old)
@@ -33,6 +36,8 @@ target_include_directories(${library_name}
     "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
 target_link_libraries(${library_name} PUBLIC
+  nlohmann_json::nlohmann_json
+
   Ceres::ceres
   Eigen3::Eigen
   nav2_core::nav2_core
