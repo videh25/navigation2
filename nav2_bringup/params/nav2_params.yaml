@@ -413,7 +413,7 @@ smoother_server:
     smoother_plugins: ["constrained_smoother", "constrained_smoother_old"]
     constrained_smoother:
       plugin: "nav2_constrained_smoother/ConstrainedSmoother"
-      reversing_enabled: false       # whether to detect forward/reverse direction and cusps. should be set to false for paths without orientations assigned
+      reversing_enabled: true       # whether to detect forward/reverse direction and cusps. should be set to false for paths without orientations assigned
       path_downsampling_factor: 3   # every n-th node of the path is taken. useful for speed-up
       path_upsampling_factor: 1     # 0 - path remains downsampled, 1 - path is upsampled back to original granularity using cubic bezier, 2... - more upsampling
       keep_start_orientation: true  # whether to prevent the start orientation from being smoothed
@@ -441,7 +441,7 @@ smoother_server:
 
     constrained_smoother_old:
       plugin: "nav2_constrained_smoother_old/ConstrainedSmootherOld"
-      reversing_enabled: false       # whether to detect forward/reverse direction and cusps. Should be set to false for paths without orientations assigned
+      reversing_enabled: true       # whether to detect forward/reverse direction and cusps. should be set to false for paths without orientations assigned
       path_downsampling_factor: 3   # every n-th node of the path is taken. Useful for speed-up
       path_upsampling_factor: 1     # 0 - path remains downsampled, 1 - path is upsampled back to original granularity using cubic bezier, 2... - more upsampling
       keep_start_orientation: true  # whether to prevent the start orientation from being smoothed

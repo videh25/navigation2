@@ -17,7 +17,6 @@
 #define NAV2_CONSTRAINED_SMOOTHER__SMOOTHER_HPP_
 
 #include <cmath>
-#include <nlohmann/json_fwd.hpp>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -28,8 +27,7 @@
 #include <algorithm>
 
 #include <rclcpp/rclcpp.hpp>
-#include <nlohmann/json.hpp>
-#include <std_msgs/msg/string.hpp>
+#include <nav2_msgs/msg/ceres_solver_brief.hpp>
 
 #include "nav2_constrained_smoother/smoother_cost_function.hpp"
 #include "nav2_constrained_smoother/utils.hpp"
@@ -54,7 +52,7 @@ public:
   Smoother(): publisher_node_("ceres_summary_publisher") {
     rclcpp::QoS qos(rclcpp::KeepLast(500));
     qos.reliable();   // ensure reliable delivery
-    summary_publisher_ = publisher_node_.create_publisher<std_msgs::msg::String>("/ceres_summary", qos);
+    summary_publisher_ = publisher_node_.create_publisher<nav2_msgs::msg::CeresSolverBrief>("/ceres_summary", qos);
   }
 
   /**
@@ -118,18 +116,12 @@ public:
       ceres::Solve(options_, &problem, &summary);
       if (debug_) {
         RCLCPP_INFO(rclcpp::get_logger("smoother_server"), "%s", summary.FullReport().c_str());
-        nlohmann::json summary_json;
-        summary_json["total_time"] = summary.total_time_in_seconds;
-        if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
-          summary_json["converged"] = true;
-        } else {
-          summary_json["converged"] = false;
-        }
-        summary_json["num_iterations"] = summary.iterations.size();
+        nav2_msgs::msg::CeresSolverBrief ceres_msg;
+        ceres_msg.total_time = summary.total_time_in_seconds;
+        ceres_msg.converged = summary.termination_type == ceres::TerminationType::CONVERGENCE;
+        ceres_msg.num_iterations = summary.iterations.size();
 
-        std_msgs::msg::String summary_msg;
-        summary_msg.data = summary_json.dump();
-        summary_publisher_->publish(summary_msg);
+        summary_publisher_->publish(ceres_msg);
       }
       if (!summary.IsSolutionUsable() || summary.initial_cost - summary.final_cost < 0.0) {
         throw nav2_core::FailedToSmoothPath("Solution is not usable");
@@ -417,7 +409,7 @@ private:
   ceres::Solver::Options options_;
   std::shared_ptr<ceres::Grid2D<unsigned char>> costmap_grid_;
   rclcpp::Node publisher_node_;
-  std::shared_ptr<rclcpp::Publisher<std_msgs::msg::String>> summary_publisher_;
+  std::shared_ptr<rclcpp::Publisher<nav2_msgs::msg::CeresSolverBrief>> summary_publisher_;
 };
 
 }  // namespace nav2_constrained_smoother

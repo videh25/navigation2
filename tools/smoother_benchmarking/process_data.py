@@ -341,19 +341,19 @@ def main() -> None:
         ]
     )
     # for path smoothers
-    for i in range(methods_num - 1):
+    for i in range(1, methods_num):
         planner_table.append(
             [
-                smoothers[i],
+                smoothers[i - 1],
                 np.average(times[i]),
                 np.average(path_lengths[i]),
                 np.average(average_path_costs[i]),
                 np.average(max_path_costs[i]),
                 np.average(smoothnesses[i]) * 100,
                 np.average(curvatures[i]),
-                ceres_converge_rate[i],
-                ceres_iterations[i],
-                ceres_time[i],
+                ceres_converge_rate[i-1],
+                ceres_iterations[i-1],
+                ceres_time[i-1],
             ]
         )
 

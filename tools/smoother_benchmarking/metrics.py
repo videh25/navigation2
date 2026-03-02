@@ -30,8 +30,7 @@ import rclpy
 from transforms3d.euler import euler2quat
 
 from rclpy.node import Node
-from std_msgs.msg import String   # change message type as needed
-import json
+from nav2_msgs.msg import CeresSolverBrief   # change message type as needed
 import time
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 # Note: Map origin is assumed to be (0,0)
@@ -46,39 +45,44 @@ class CeresSummaryCollector(Node):
         )
 
         self.old_subscription = self.create_subscription(
-            String,              # message type
+            CeresSolverBrief,              # message type
             '/ceres_summary_old',        # topic name
             self.listener_callback_old,
             qos,
         )
 
         self.new_subscription = self.create_subscription(
-            String,              # message type
+            CeresSolverBrief,              # message type
             '/ceres_summary',        # topic name
             self.listener_callback_new,
             qos,
         )
         self.get_logger().info("Subscriber node started.")
-        self.old_ceres_summaries = []
-        self.new_ceres_summaries = []
+        self.combined_summaries = [[], []]
 
     def listener_callback_old(self, msg):
-        self.old_ceres_summaries.append(msg)
+        print("INSIDE_OLD_CALLBACK")
+        print(self.ceres_msg_to_dict(msg))
+        self.combined_summaries[0].append(self.ceres_msg_to_dict(msg))
 
     def listener_callback_new(self, msg):
-        self.new_ceres_summaries.append(msg)
+        print("INSIDE_NEW_CALLBACK")
+        print(self.ceres_msg_to_dict(msg))
+        self.combined_summaries[1].append(self.ceres_msg_to_dict(msg))
+
+    def ceres_msg_to_dict(self, msg: CeresSolverBrief) -> Dict:
+        return {
+            "total_time": msg.total_time,
+            "converged": msg.converged,
+            "num_iterations": msg.num_iterations,
+        }
 
     def wait_and_get_ceres_data(self, expected_total: int):
-        while ((len(self.new_ceres_summaries) != expected_total) or (len(self.old_ceres_summaries) != expected_total)):
-            print(f"Waiting for all old ceres summaries ({len(self.old_ceres_summaries)} / {expected_total}) ...")
-            print(f"Waiting for all new ceres summaries ({len(self.new_ceres_summaries)} / {expected_total}) ...")
-            time.sleep(1)
-            rclpy.spin_once(self)
-        combined_summaries = [[], []]
-        for i in range(expected_total):
-            combined_summaries[0].append(json.loads(self.old_ceres_summaries[i].data))
-            combined_summaries[1].append(json.loads(self.new_ceres_summaries[i].data))
-        return combined_summaries
+        while ((len(self.combined_summaries[0]) != expected_total) or (len(self.combined_summaries[1]) != expected_total)):
+            print(f"Waiting for all old ceres summaries ({len(self.combined_summaries[0])} / {expected_total}) ...")
+            print(f"Waiting for all new ceres summaries ({len(self.combined_summaries[1])} / {expected_total}) ...")
+            rclpy.spin_once(self, timeout_sec=1.0)
+        return self.combined_summaries
 
     def flush_ceres_data(self):
         self.latest_old_msg = []
@@ -152,7 +156,8 @@ def getRandomGoal(
         y_diff = goal_y - start_y
         dist = math.sqrt(x_diff ** 2 + y_diff ** 2)
 
-        if costmap[row, col] < max_cost and dist > 3.0:
+        # print(f'start: {(start_x,start_y)} | evaluating: {(goal_x,goal_y)} | cost: {costmap[row, col]} | dist: {dist > 0.5}')
+        if costmap[row, col] < max_cost and dist > 0.5:
             goal.pose.position.x = goal_x
             goal.pose.position.y = goal_y
 
@@ -181,7 +186,7 @@ def main() -> None:
     costmap = np.asarray(costmap_msg.data)
     costmap.resize(costmap_msg.metadata.size_y, costmap_msg.metadata.size_x)
 
-    planner = 'ThetaStar'
+    planner = 'SmacHybrid'
     smoothers = ['constrained_smoother_old', 'constrained_smoother']
     max_cost = 210
     side_buffer = 10
@@ -189,7 +194,7 @@ def main() -> None:
     results = []
     seed(33)
 
-    random_pairs = 4
+    random_pairs = 200
     i = 0
     res = costmap_msg.metadata.resolution
     while i < random_pairs:
@@ -200,8 +205,11 @@ def main() -> None:
         print('Goal', goal)
         result = getPlannerResults(navigator, start, goal, planner)
         if result is not None:
+            if (result.path.poses[-1] == result.path.poses[-2]):
+                result.path.poses.pop()
             smoothed_results = getSmootherResults(navigator, result.path, smoothers)
             if smoothed_results is not None:
+                rclpy.spin_once(ceres_summary_collector)
                 rclpy.spin_once(ceres_summary_collector)
                 results.append(result)
                 results.append(smoothed_results)
